@@ -94,6 +94,20 @@ mod shell_hook {
     }
 }
 
+mod shell_hook_fish {
+    run_tests! {
+        "tests/shell/test_hook.fish",
+        {
+            test_profiles_tracking,
+            test_path_rewrite,
+            test_pipe_wrapping,
+            test_invalid_commandline,
+            test_cleanup_event,
+            test_island_refreshes_profiles,
+        }
+    }
+}
+
 mod create {
     run_tests! {
         "tests/commands/test_create.sh",

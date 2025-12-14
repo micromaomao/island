@@ -59,6 +59,14 @@ $ ls
 bin  boot  dev	etc  home  [...]
 ```
 
+For Fish users:
+
+```console
+$ fish_add_path $HOME/.cargo/bin
+$ source (island completion fish | psub)
+$ source (island hook fish | psub)
+```
+
 ## How it works
 
 Profiles are stored in `~/.config/island/profiles/<name>/` and contain:
