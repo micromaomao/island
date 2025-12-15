@@ -75,12 +75,11 @@ function _island_process_token_impl --argument-names token_ref
         set is_assignment 1
     end
 
-    set -l is_sep_word 0
-    if test "$stripped" = "and" -o "$stripped" = "or"
-        set is_sep_word 1
-    end
-
     if test $expecting_cmd -eq 1
+        set -l is_sep_word 0
+        if test "$stripped" = "and" -o "$stripped" = "or"
+            set is_sep_word 1
+        end
         if test $is_assignment -eq 1
             set out "$out$raw_token"
             set -g _ISLAND_TMP_OUT "$out"
@@ -88,14 +87,14 @@ function _island_process_token_impl --argument-names token_ref
             set -g _ISLAND_TMP_MODIFIED "$modified"
             return
         end
-    if test $is_sep_word -eq 1
-        set out "$out$raw_token"
-        set expecting_cmd 1
-        set -g _ISLAND_TMP_OUT "$out"
-        set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
-        set -g _ISLAND_TMP_MODIFIED "$modified"
-        return
-    end
+        if test $is_sep_word -eq 1
+            set out "$out$raw_token"
+            set expecting_cmd 1
+            set -g _ISLAND_TMP_OUT "$out"
+            set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
+            set -g _ISLAND_TMP_MODIFIED "$modified"
+            return
+        end
 
     set -l name "$stripped"
 
@@ -108,9 +107,6 @@ function _island_process_token_impl --argument-names token_ref
     end
     set expecting_cmd 0
     else
-        if test $is_sep_word -eq 1
-            set expecting_cmd 1
-        end
         set out "$out$raw_token"
     end
 
