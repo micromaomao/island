@@ -59,6 +59,66 @@ function _island_wrap_cmd --argument-names cmd
     set -g _ISLAND_WRAPPED_CMDS $cmd $_ISLAND_WRAPPED_CMDS
 end
 
+function _island_process_token_impl --argument-names token_ref
+    set -l raw_token $token_ref
+    set -l stripped (string trim -- "$raw_token")
+    if test -z "$stripped"
+        return
+    end
+
+    set -l out $_ISLAND_TMP_OUT
+    set -l expecting_cmd $_ISLAND_TMP_EXPECTING_CMD
+    set -l modified $_ISLAND_TMP_MODIFIED
+
+    set -l is_assignment 0
+    if string match -r '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $stripped
+        set is_assignment 1
+    end
+
+    set -l is_sep_word 0
+    if test "$stripped" = "and" -o "$stripped" = "or"
+        set is_sep_word 1
+    end
+
+    if test $expecting_cmd -eq 1
+        if test $is_assignment -eq 1
+            set out "$out$raw_token"
+            set -g _ISLAND_TMP_OUT "$out"
+            set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
+            set -g _ISLAND_TMP_MODIFIED "$modified"
+            return
+        end
+    if test $is_sep_word -eq 1
+        set out "$out$raw_token"
+        set expecting_cmd 1
+        set -g _ISLAND_TMP_OUT "$out"
+        set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
+        set -g _ISLAND_TMP_MODIFIED "$modified"
+        return
+    end
+
+    set -l name "$stripped"
+
+    if string match -r '/' -- "$name"
+        set out "$out""island run -- $raw_token"
+        set modified 1
+    else
+        _island_wrap_cmd "$name"
+        set out "$out$raw_token"
+    end
+    set expecting_cmd 0
+    else
+        if test $is_sep_word -eq 1
+            set expecting_cmd 1
+        end
+        set out "$out$raw_token"
+    end
+
+    set -g _ISLAND_TMP_OUT "$out"
+    set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
+    set -g _ISLAND_TMP_MODIFIED "$modified"
+end
+
 function _island_accept_line
     commandline --is-valid
     set -l cl_status $status
@@ -84,53 +144,9 @@ function _island_accept_line
     set -l escaped 0
     set -l in_comment 0
     set -l modified 0
-
-    function _island_process_token --no-scope-shadowing --argument-names token_ref
-        set -l raw_token $token_ref
-        set -l stripped (string trim -- $raw_token)
-        if test -z "$stripped"
-            return
-        end
-
-        set -l is_assignment 0
-        if string match -r '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $stripped
-            set is_assignment 1
-        end
-
-        set -l is_sep_word 0
-        if test "$stripped" = "and" -o "$stripped" = "or"
-            set is_sep_word 1
-        end
-
-        if test $expecting_cmd -eq 1
-            if test $is_assignment -eq 1
-                set out "$out$raw_token"
-                return
-            end
-            if test $is_sep_word -eq 1
-                set out "$out$raw_token"
-                set expecting_cmd 1
-                return
-            end
-
-            set -l name $stripped
-            set name (string trim --chars "\"'" -- $name)
-
-            if string match -r '/' -- $name
-                set out "$out""island run -- $raw_token"
-                set modified 1
-            else
-                _island_wrap_cmd "$name"
-                set out "$out$raw_token"
-            end
-            set expecting_cmd 0
-        else
-            if test $is_sep_word -eq 1
-                set expecting_cmd 1
-            end
-            set out "$out$raw_token"
-        end
-    end
+    set -g _ISLAND_TMP_OUT "$out"
+    set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
+    set -g _ISLAND_TMP_MODIFIED "$modified"
 
     set -l i 1
     set -l len (string length -- $buffer)
@@ -142,6 +158,7 @@ function _island_accept_line
             if test "$ch" = "\n"
                 set in_comment 0
                 set expecting_cmd 1
+                set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
             end
             set i (math $i + 1)
             continue
@@ -178,10 +195,14 @@ function _island_accept_line
         if test $in_squote -eq 0 -a $in_dquote -eq 0
             if test "$ch" = "#"
                 if test -n "$token"
-                    _island_process_token "$token"
+                    _island_process_token_impl "$token"
+                    set out $_ISLAND_TMP_OUT
+                    set modified $_ISLAND_TMP_MODIFIED
+                    set expecting_cmd $_ISLAND_TMP_EXPECTING_CMD
                     set token ""
                 end
                 set out "$out#"
+                set -g _ISLAND_TMP_OUT "$out"
                 set in_comment 1
                 set i (math $i + 1)
                 continue
@@ -212,11 +233,16 @@ function _island_accept_line
 
             if test $sep_len -gt 0
                 if test -n "$token"
-                    _island_process_token "$token"
+                    _island_process_token_impl "$token"
+                    set out $_ISLAND_TMP_OUT
+                    set modified $_ISLAND_TMP_MODIFIED
+                    set expecting_cmd $_ISLAND_TMP_EXPECTING_CMD
                     set token ""
                 end
                 set out "$out$sep_value"
                 set expecting_cmd 1
+                set -g _ISLAND_TMP_OUT "$out"
+                set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
                 set i (math $i + $sep_len)
                 continue
             end
@@ -225,10 +251,14 @@ function _island_accept_line
         if test $in_squote -eq 0 -a $in_dquote -eq 0
             if string match -r '^[ \t\r]$' -- $ch
                 if test -n "$token"
-                    _island_process_token "$token"
+                    _island_process_token_impl "$token"
+                    set out $_ISLAND_TMP_OUT
+                    set modified $_ISLAND_TMP_MODIFIED
+                    set expecting_cmd $_ISLAND_TMP_EXPECTING_CMD
                     set token ""
                 end
                 set out "$out$ch"
+                set -g _ISLAND_TMP_OUT "$out"
                 set i (math $i + 1)
                 continue
             end
@@ -239,8 +269,14 @@ function _island_accept_line
     end
 
     if test -n "$token"
-        _island_process_token "$token"
+        _island_process_token_impl "$token"
+        set out $_ISLAND_TMP_OUT
+        set modified $_ISLAND_TMP_MODIFIED
     end
+
+    set out $_ISLAND_TMP_OUT
+    set modified $_ISLAND_TMP_MODIFIED
+    set -e _ISLAND_TMP_OUT _ISLAND_TMP_EXPECTING_CMD _ISLAND_TMP_MODIFIED
 
     if test $modified -eq 1
         commandline --replace -- "$out"
@@ -254,7 +290,7 @@ function _island_precmd --on-event fish_prompt
         return 0
     end
     for cmd in $_ISLAND_WRAPPED_CMDS
-        functions -e -- $cmd 2>/dev/null
+        functions -e -- $cmd
     end
     set -e _ISLAND_WRAPPED_CMDS
 end
@@ -267,20 +303,20 @@ function island
 end
 
 function _island_unhook
-    bind --erase \r 2>/dev/null
-    bind -M insert --erase \r 2>/dev/null
+    bind --erase \r
+    bind -M insert --erase \r
 
     if functions -q _island_precmd
         _island_precmd
     end
 
-    functions -e _island_accept_line 2>/dev/null
-    functions -e _island_chpwd 2>/dev/null
-    functions -e _island_precmd 2>/dev/null
-    functions -e _island_unhook 2>/dev/null
-    functions -e _island_wrap_cmd 2>/dev/null
-    functions -e _island_process_token 2>/dev/null
-    functions -e island 2>/dev/null
+    functions -e _island_accept_line
+    functions -e _island_chpwd
+    functions -e _island_precmd
+    functions -e _island_unhook
+    functions -e _island_wrap_cmd
+    functions -e _island_process_token_impl
+    functions -e island
 
     set -e _ISLAND_PROFILES
     set -e _ISLAND_WRAPPED_CMDS
@@ -288,6 +324,7 @@ end
 
 if status is-interactive
     bind \r _island_accept_line
+    bind -M insert \r _island_accept_line
 end
 
 _island_chpwd

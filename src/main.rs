@@ -383,7 +383,7 @@ fn main() -> Result<(), IslandError> {
                 }
                 HookShell::Fish => {
                     if undo {
-                        println!("_island_unhook ^/dev/null; or true");
+                        println!("_island_unhook 2>/dev/null; or true");
                     } else {
                         println!("{}", include_str!("../assets/shell/hook.fish"));
                     }

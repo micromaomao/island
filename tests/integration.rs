@@ -101,6 +101,9 @@ mod shell_hook_fish {
         {
             test_profiles_tracking,
             test_path_rewrite,
+            test_path_rewrite_quoted,
+            test_path_rewrite_escaped,
+            test_quoted_command_wrapping,
             test_pipe_wrapping,
             test_invalid_commandline,
             test_cleanup_event,
