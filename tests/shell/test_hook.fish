@@ -176,6 +176,23 @@ function test_quoted_command_wrapping
     tap_pass
 end
 
+function test_and_variants
+    tap_start "Logical and separators"
+    setup
+    set -g _ISLAND_PROFILES alpha
+
+    set -g __island_cmdline_buffer "cat a; and cat b"
+    _island_accept_line
+    assert_contains cat "cat not wrapped after ; and" $_ISLAND_WRAPPED_CMDS
+
+    set -g __island_cmdline_buffer "cat a and cat b"
+    _island_accept_line
+    if contains -- cat $_ISLAND_WRAPPED_CMDS
+        tap_fail "'and' without leading separator should not wrap second command"
+    end
+    tap_pass
+end
+
 function test_pipe_wrapping
     tap_start "Wrapping with pipe variants"
     setup
@@ -240,6 +257,7 @@ set TESTS \
     test_path_rewrite_quoted \
     test_path_rewrite_escaped \
     test_quoted_command_wrapping \
+    test_and_variants \
     test_pipe_wrapping \
     test_invalid_commandline \
     test_cleanup_event \
