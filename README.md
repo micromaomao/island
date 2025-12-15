@@ -61,7 +61,7 @@ bin  boot  dev	etc  home  [...]
 
 For Fish users:
 
-```console
+```fish
 $ fish_add_path $HOME/.cargo/bin
 $ source (island completion fish | psub)
 $ source (island hook fish | psub)

@@ -50,7 +50,7 @@ begin
     echo 'esac'
     echo 'exit 0'
 end >"$ISLAND_STUB"
-chmod +x "$ISLAND_STUB_DIR/island"
+chmod +x "$ISLAND_STUB"
 set -gx PATH "$ISLAND_STUB_DIR" $PATH
 
 set -g __island_cmdline_buffer ""
@@ -144,6 +144,38 @@ function test_path_rewrite
     tap_pass
 end
 
+function test_path_rewrite_quoted
+    tap_start "Path rewrite preserves quoting"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    set -g __island_cmdline_buffer "./'my binary' arg"
+    _island_accept_line
+    assert_eq "$__island_cmdline_buffer" "island run -- ./'my binary' arg" "Quoted path not rewritten"
+    tap_pass
+end
+
+function test_path_rewrite_escaped
+    tap_start "Path rewrite handles escaped spaces"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    set -g __island_cmdline_buffer "./my\\ binary"
+    _island_accept_line
+    assert_eq "$__island_cmdline_buffer" "island run -- ./my\\ binary" "Escaped path not rewritten"
+    tap_pass
+end
+
+function test_quoted_command_wrapping
+    tap_start "Quoted args keep command wrapping"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    functions -e ls 2>/dev/null
+    set -g __island_cmdline_buffer "ls \"file with >> weird name\""
+    _island_accept_line
+    assert_contains ls "ls not wrapped" $_ISLAND_WRAPPED_CMDS
+    assert_eq "$__island_cmdline_buffer" "ls \"file with >> weird name\"" "Buffer modified unexpectedly"
+    tap_pass
+end
+
 function test_pipe_wrapping
     tap_start "Wrapping with pipe variants"
     setup
@@ -205,6 +237,9 @@ end
 set TESTS \
     test_profiles_tracking \
     test_path_rewrite \
+    test_path_rewrite_quoted \
+    test_path_rewrite_escaped \
+    test_quoted_command_wrapping \
     test_pipe_wrapping \
     test_invalid_commandline \
     test_cleanup_event \
