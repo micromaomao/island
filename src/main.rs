@@ -117,7 +117,7 @@ enum Commands {
             Supports Zsh and Fish."
     )]
     Hook {
-        #[arg(help = "Shell to generate integration for")]
+        #[arg(help = "Shell to generate integration for (zsh or fish)")]
         shell: HookShell,
 
         #[arg(long, help = "Output the script to remove the shell integration")]
