@@ -155,17 +155,21 @@ function _island_accept_line
 
             if test $nosandbox_next -eq 1
                 set out "$out$curr_token"
+                set curr_token ""
             else if string match -r '/' -- "$name"
                 set out "$out""island run -- $curr_token"
+                set curr_token ""
                 set modified 1
             else
                 _island_wrap_cmd "$name"
                 set out "$out$curr_token"
+                set curr_token ""
             end
             set nosandbox_next 0
             set expecting_cmd 0
         else
             set out "$out$curr_token"
+            set curr_token ""
         end
 
         set curr_token ""
@@ -255,13 +259,14 @@ function _island_accept_line
                 set sep_value $match[1]; set sep_len (string length -- $sep_value)
             else
                 set -l separator_specs \
-                    "^[0-9]+>\\|" \
+                    "^\n" \
+                    "^;" \
+                    "^&" \
                     "^&&" \
                     "^\\|\\|" \
-                    "^&\\|" \
                     "^\\|" \
-                    "^;" \
-                    "^&"
+                    "^&\\|" \
+                    "^\\d+>\\|"
 
                 for spec in $separator_specs
                     set -l m (string match -r -- $spec $remaining)
