@@ -23,7 +23,8 @@
 # - Parsing is best-effort and quote-aware only; complex constructs such as
 #   command substitutions are not handled.
 #
-# Example prompt tweak:
+# # Example usage in fish_prompt:
+#
 # functions --copy fish_prompt _orig_fish_prompt
 # function fish_prompt
 #     if test -n "$_ISLAND_PROFILES"
