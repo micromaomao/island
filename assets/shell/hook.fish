@@ -31,7 +31,8 @@
 #     end
 #     _orig_fish_prompt
 # end
-#
+
+
 # Ensure clean state if re-sourced.
 if functions -q _island_unhook
     _island_unhook
