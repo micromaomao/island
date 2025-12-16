@@ -107,6 +107,7 @@ mod shell_hook_fish {
             test_nosandbox,
             test_and_variants,
             test_pipe_wrapping,
+            test_redirections,
             test_invalid_commandline,
             test_cleanup_event,
             test_island_refreshes_profiles,
