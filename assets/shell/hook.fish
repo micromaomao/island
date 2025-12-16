@@ -106,11 +106,17 @@ function _island_accept_line
     set -l escaped 0
     set -l in_comment 0
     set -l modified 0
+    set -l nosandbox_next 0
 
     function _island_process_token --no-scope-shadowing --argument-names token_ref
         set -l raw_token $token_ref
         set -l stripped (string trim -- "$raw_token")
         if test -z "$stripped"
+            return
+        end
+
+        if test $expecting_cmd -eq 1 -a "$stripped" = "nosandbox"
+            set nosandbox_next 1
             return
         end
 
@@ -137,13 +143,16 @@ function _island_accept_line
 
             set -l name (string unescape -- "$stripped")
 
-            if string match -r '/' -- "$name"
+            if test $nosandbox_next -eq 1
+                set out "$out$raw_token"
+            else if string match -r '/' -- "$name"
                 set out "$out""island run -- $raw_token"
                 set modified 1
             else
                 _island_wrap_cmd "$name"
                 set out "$out$raw_token"
             end
+            set nosandbox_next 0
             set expecting_cmd 0
         else
             if test $is_sep_word -eq 1
