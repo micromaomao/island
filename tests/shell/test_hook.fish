@@ -164,6 +164,16 @@ function test_path_rewrite_escaped
     tap_pass
 end
 
+function test_path_rewrite_space
+    tap_start "Path rewrite handles space-quoted path"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    set -g __island_cmdline_buffer "./my binary"
+    _island_accept_line
+    assert_eq "$__island_cmdline_buffer" "island run -- ./my binary" "Space path not rewritten"
+    tap_pass
+end
+
 function test_quoted_command_wrapping
     tap_start "Quoted args keep command wrapping"
     setup
@@ -256,6 +266,7 @@ set TESTS \
     test_path_rewrite \
     test_path_rewrite_quoted \
     test_path_rewrite_escaped \
+    test_path_rewrite_space \
     test_quoted_command_wrapping \
     test_and_variants \
     test_pipe_wrapping \
