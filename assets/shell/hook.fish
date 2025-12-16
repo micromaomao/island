@@ -150,7 +150,7 @@ function _island_accept_line
             end
 
             # env assignment cannot be in a quoted string, so test $curr_token
-            if string match -r '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $curr_token > /dev/null
+            if string match -qr '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $curr_token
                 _island_append_token_to_out
                 return
             end
@@ -169,7 +169,7 @@ function _island_accept_line
                 return
             end
 
-            if string match -r '/' -- "$unescaped" > /dev/null
+            if string match -qr '/' -- "$unescaped"
                 set curr_line_out "$curr_line_out""island run -- $curr_token"
                 set curr_token ""
                 set modified 1
@@ -285,7 +285,7 @@ function _island_accept_line
                 continue
             end
 
-            if string match -r '^[ \t]$' -- $ch > /dev/null
+            if string match -qr '^[ \t]$' -- $ch
                 _island_process_curr_token
                 set curr_line_out "$curr_line_out$ch"
                 set i (math $i + 1)
