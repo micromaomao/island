@@ -202,15 +202,15 @@ function test_and_variants
     setup
     set -g _ISLAND_PROFILES alpha
 
-    set -g __island_cmdline_buffer "cat a; and head b"
+    set -g __island_cmdline_buffer "head a; and tail b"
     _island_accept_line
-    assert_contains cat "cat not wrapped after ; and" $_ISLAND_WRAPPED_CMDS
-    assert_contains head "head not wrapped after ; and" $_ISLAND_WRAPPED_CMDS
+    assert_contains head "first command not wrapped" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command not wrapped after \`; and\`" $_ISLAND_WRAPPED_CMDS
 
-    set -g __island_cmdline_buffer "cat a and head b"
+    set -g __island_cmdline_buffer "head a and tail b"
     _island_accept_line
-    assert_contains cat "'and' chain should still wrap first command" $_ISLAND_WRAPPED_CMDS
-    if contains -- head $_ISLAND_WRAPPED_CMDS
+    assert_contains head "first command not wrapped" $_ISLAND_WRAPPED_CMDS
+    if contains -- tail $_ISLAND_WRAPPED_CMDS
         tap_fail "'and' without leading separator should not wrap second command"
     end
     tap_pass

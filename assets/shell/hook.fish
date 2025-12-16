@@ -113,49 +113,51 @@ function _island_accept_line
     set -l in_dquote 0
     set -l escaped 0
     set -l modified 0
-    set -l nosandbox_next 0
+    set -l curr_cmd_nosandbox 0
 
     function _island_process_curr_token --no-scope-shadowing
-        set -l stripped (string trim -- "$curr_token")
-        if test -z "$stripped"
+        set -l unescaped (string unescape -- "$curr_token")
+        if test -z "$unescaped"
+            # empty token, still add to buffer but do no processing
+            set out "$out$curr_token"
             set curr_token ""
             return
-        end
-
-        if test $expecting_cmd -eq 1 -a "$stripped" = "nosandbox"
-            set nosandbox_next 1
-            set curr_token ""
-            return
-        end
-
-        set -l is_assignment 0
-        if string match -r '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $stripped
-            set is_assignment 1
-        end
-
-        set -l is_sep_word 0
-        if test "$stripped" = "and" -o "$stripped" = "or"
-            set is_sep_word 1
         end
 
         if test $expecting_cmd -eq 1
-            if test $is_assignment -eq 1
+            # This is the first token of a command.
+
+            # First looks for "special" cases - in these cases, keep
+            # expecting_cmd as 1 and return as the next token is still
+            # going to be the command.
+
+            if test "$unescaped" = "nosandbox"
+                set curr_cmd_nosandbox 1
+                # Preserve "nosandbox" in history.
                 set out "$out$curr_token"
-                set curr_token ""
-                return
-            end
-            if test $is_sep_word -eq 1
-                set out "$out$curr_token"
-                set expecting_cmd 1
                 set curr_token ""
                 return
             end
 
+            if string match -r '^[A-Za-z_][A-Za-z0-9_]*[+]?=.*' -- $stripped
+                # Environment variable assignment
+                set out "$out$curr_token"
+                set curr_token ""
+                return
+            end
+
+            if test "$stripped" = "and" -o "$stripped" = "or"
+                set out "$out$curr_token"
+                set curr_token ""
+                return
+            end
+
+            # We have a normal command name now - add name to buffer.
+            set out "$out$curr_token"
+            set curr_token ""
             set -l name (string unescape -- "$stripped")
 
-            if test $nosandbox_next -eq 1
-                set out "$out$curr_token"
-                set curr_token ""
+            if test $curr_cmd_nosandbox -eq 1
             else if string match -r '/' -- "$name"
                 set out "$out""island run -- $curr_token"
                 set curr_token ""
@@ -165,7 +167,7 @@ function _island_accept_line
                 set out "$out$curr_token"
                 set curr_token ""
             end
-            set nosandbox_next 0
+            set curr_cmd_nosandbox 0
             set expecting_cmd 0
         else
             set out "$out$curr_token"
@@ -177,7 +179,9 @@ function _island_accept_line
 
     set -l line_count (count $input_lines)
     set -l idx 1
+
     for line in $input_lines
+        # string sub starts at 1
         set -l i 1
         set -l len (string length -- $line)
         set -l in_comment 0
@@ -237,10 +241,11 @@ function _island_accept_line
 
             if test "$ch" = "#"
                 _island_process_curr_token
-                set out "$out#"
-                set in_comment 1
+                set remaining (string sub -s $i -- $buffer)
+                set out "$out$remaining"
+                # skip rest of the line
                 set i (math $len + 1)
-                continue
+                break
             end
 
             set -l remaining (string sub -s $i -- $line)
@@ -289,7 +294,8 @@ function _island_accept_line
                 continue
             end
 
-            if string match -r '^[ \t\r]$' -- $ch
+        if test $in_squote -eq 0 -a $in_dquote -eq 0
+            if string match -r '^[ \t]$' -- $ch
                 _island_process_curr_token
                 set out "$out$ch"
                 set i (math $i + 1)
