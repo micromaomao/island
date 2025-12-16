@@ -226,6 +226,35 @@ function test_pipe_wrapping
     tap_pass
 end
 
+function test_redirections
+    tap_start "Redirections split tokens without new command"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    functions -e ls 2>/dev/null
+
+    set -g __island_cmdline_buffer "ls>a"
+    _island_accept_line
+    assert_contains ls "ls not wrapped for >" $_ISLAND_WRAPPED_CMDS
+    assert_eq "$__island_cmdline_buffer" "ls>a" "Buffer changed with >"
+
+    set -g __island_cmdline_buffer "ls>>a"
+    _island_accept_line
+    assert_contains ls "ls not wrapped for >>" $_ISLAND_WRAPPED_CMDS
+    assert_eq "$__island_cmdline_buffer" "ls>>a" "Buffer changed with >>"
+
+    set -g __island_cmdline_buffer "ls<a"
+    _island_accept_line
+    assert_contains ls "ls not wrapped for <" $_ISLAND_WRAPPED_CMDS
+    assert_eq "$__island_cmdline_buffer" "ls<a" "Buffer changed with <"
+
+    set -g __island_cmdline_buffer "ls<<a"
+    _island_accept_line
+    assert_contains ls "ls not wrapped for <<" $_ISLAND_WRAPPED_CMDS
+    assert_eq "$__island_cmdline_buffer" "ls<<a" "Buffer changed with <<"
+
+    tap_pass
+end
+
 function test_invalid_commandline
     tap_start "Invalid commandline skips wrapping"
     setup
@@ -282,6 +311,7 @@ set TESTS \
     test_nosandbox \
     test_and_variants \
     test_pipe_wrapping \
+    test_redirections \
     test_invalid_commandline \
     test_cleanup_event \
     test_island_refreshes_profiles

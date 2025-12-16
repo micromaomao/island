@@ -105,14 +105,13 @@ function _island_accept_line
     set -e _ISLAND_WRAPPED_CMDS
     set -g _ISLAND_WRAPPED_CMDS
 
-    set -l buffer (commandline --current-buffer)
+    set -l input_lines (commandline --current-buffer)
     set -l out ""
     set -l curr_token ""
     set -l expecting_cmd 1
     set -l in_squote 0
     set -l in_dquote 0
     set -l escaped 0
-    set -l in_comment 0
     set -l modified 0
     set -l nosandbox_next 0
 
@@ -173,108 +172,139 @@ function _island_accept_line
         end
 
         set curr_token ""
-
-        set curr_token ""
     end
 
-    set -l i 1
-    set -l len (string length -- $buffer)
-    while test $i -le $len
-        set -l ch (string sub -s $i -l 1 -- $buffer)
+    set -l line_count (count $input_lines)
+    set -l idx 1
+    for line in $input_lines
+        set -l i 1
+        set -l len (string length -- $line)
+        set -l in_comment 0
+        while test $i -le $len
+            set -l ch (string sub -s $i -l 1 -- $line)
 
-        if test $in_comment -eq 1
-            set out "$out$ch"
-            if test "$ch" = "\n"
-                set in_comment 0
-                set expecting_cmd 1
-            end
-            set i (math $i + 1)
-            continue
-        end
-
-        if test $escaped -eq 1
-            set token "$token$ch"
-            set escaped 0
-            set i (math $i + 1)
-            continue
-        end
-
-        if test "$ch" = "\\" -a $in_squote -eq 0
-            set escaped 1
-            set token "$token$ch"
-            set i (math $i + 1)
-            continue
-        end
-
-        if test "$ch" = "'" -a $in_dquote -eq 0
-            set in_squote (math 1 - $in_squote)
-            set token "$token$ch"
-            set i (math $i + 1)
-            continue
-        end
-
-        if test "$ch" = '"' -a $in_squote -eq 0
-            set in_dquote (math 1 - $in_dquote)
-            set token "$token$ch"
-            set i (math $i + 1)
-            continue
-        end
-
-        if test $in_squote -eq 0 -a $in_dquote -eq 0
-            if test "$ch" = "#"
-                _island_process_curr_token
-                set out "$out#"
-                set in_comment 1
+            if test $escaped -eq 1
+                set curr_token "$curr_token$ch"
+                set escaped 0
                 set i (math $i + 1)
                 continue
             end
 
-            set -l remaining (string sub -s $i -- $buffer)
+            if test "$ch" = "\\" -a $in_squote -eq 0
+                set escaped 1
+                set curr_token "$curr_token$ch"
+                set i (math $i + 1)
+                continue
+            end
+
+            if test $in_squote -eq 1
+                set curr_token "$curr_token$ch"
+                if test "$ch" = "'"
+                    set in_squote 0
+                end
+                set i (math $i + 1)
+                continue
+            end
+
+            if test $in_dquote -eq 1
+                set curr_token "$curr_token$ch"
+                if test "$ch" = '"'
+                    set in_dquote 0
+                end
+                set i (math $i + 1)
+                continue
+            end
+
+            if test "$ch" = "'"
+                set curr_token "$curr_token$ch"
+                set in_squote 1
+                set i (math $i + 1)
+                continue
+            end
+
+            if test "$ch" = '"'
+                set curr_token "$curr_token$ch"
+                set in_dquote 1
+                set i (math $i + 1)
+                continue
+            end
+
+            if test $in_comment -eq 1
+                set i (math $i + 1)
+                continue
+            end
+
+            if test "$ch" = "#"
+                _island_process_curr_token
+                set out "$out#"
+                set in_comment 1
+                set i (math $len + 1)
+                continue
+            end
+
+            set -l remaining (string sub -s $i -- $line)
             set -l sep_len 0
             set -l sep_value ""
+            set -l resets_cmd 0
 
-            set -l separator_specs \
-                "^[0-9]+>\\|" \
-                "^&&" \
-                "^\\|\\|" \
-                "^&\\|" \
-                "^\\|" \
-                "^;" \
-                "^&" \
-                "^\n"
+            # Redirections split tokens but do not start a new command.
+            if set -l match (string match -r -- '^[0-9]*>>' $remaining); and test (count $match) -gt 0
+                set sep_value $match[1]; set sep_len (string length -- $sep_value)
+            else if set -l match (string match -r -- '^[0-9]*>' $remaining); and test (count $match) -gt 0
+                set sep_value $match[1]; set sep_len (string length -- $sep_value)
+            else if set -l match (string match -r -- '^[0-9]*<<' $remaining); and test (count $match) -gt 0
+                set sep_value $match[1]; set sep_len (string length -- $sep_value)
+            else if set -l match (string match -r -- '^[0-9]*<' $remaining); and test (count $match) -gt 0
+                set sep_value $match[1]; set sep_len (string length -- $sep_value)
+            else
+                set -l separator_specs \
+                    "^[0-9]+>\\|" \
+                    "^&&" \
+                    "^\\|\\|" \
+                    "^&\\|" \
+                    "^\\|" \
+                    "^;" \
+                    "^&"
 
-            for spec in $separator_specs
-                set -l match (string match -r -- $spec $remaining)
-                if test (count $match) -gt 0
-                    set sep_value $match[1]
-                    set sep_len (string length -- $sep_value)
-                    break
+                for spec in $separator_specs
+                    set -l m (string match -r -- $spec $remaining)
+                    if test (count $m) -gt 0
+                        set sep_value $m[1]
+                        set sep_len (string length -- $sep_value)
+                        set resets_cmd 1
+                        break
+                    end
                 end
             end
 
             if test $sep_len -gt 0
                 _island_process_curr_token
                 set out "$out$sep_value"
-                set expecting_cmd 1
+                if test $resets_cmd -eq 1
+                    set expecting_cmd 1
+                end
                 set i (math $i + $sep_len)
                 continue
             end
-        end
 
-        if test $in_squote -eq 0 -a $in_dquote -eq 0
             if string match -r '^[ \t\r]$' -- $ch
                 _island_process_curr_token
                 set out "$out$ch"
                 set i (math $i + 1)
                 continue
             end
+
+            set curr_token "$curr_token$ch"
+            set i (math $i + 1)
         end
 
-        set curr_token "$curr_token$ch"
-        set i (math $i + 1)
+        _island_process_curr_token
+        if test $idx -lt $line_count
+            set out "$out\n"
+            set expecting_cmd 1
+        end
+        set idx (math $idx + 1)
     end
-
-    _island_process_curr_token
 
     if test $modified -eq 1
         commandline --replace -- "$out"
