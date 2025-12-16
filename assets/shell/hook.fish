@@ -165,9 +165,6 @@ function _island_accept_line
             set nosandbox_next 0
             set expecting_cmd 0
         else
-            if test $is_sep_word -eq 1
-                set expecting_cmd 1
-            end
             set out "$out$curr_token"
         end
 
