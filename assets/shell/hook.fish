@@ -78,9 +78,17 @@ function _island_wrap_cmd --argument-names cmd
         end
     end
 
-    function $cmd --wraps $cmd
-        command island run -- $cmd $argv
+    set escaped (string escape -- $cmd)
+
+    eval "
+    function $escaped --wraps $escaped
+        command island run -- $escaped \$argv
     end
+    "
+    if test $status -ne 0
+        return 1
+    end
+
     set -g _ISLAND_WRAPPED_CMDS $cmd $_ISLAND_WRAPPED_CMDS
 end
 
@@ -102,11 +110,10 @@ function _island_accept_line
             functions -e -- $cmd
         end
     end
-    set -e _ISLAND_WRAPPED_CMDS
     set -g _ISLAND_WRAPPED_CMDS
 
     set -l input_lines (commandline --current-buffer)
-    set -l output_lines ""
+    set -l output_lines
     set -l curr_line_out ""
     set -l curr_token ""
     set -l expecting_cmd 1
@@ -153,9 +160,8 @@ function _island_accept_line
                 return
             end
 
-            # We have a normal command name now - add name to buffer.
+            # We have a normal command name now.
             set expecting_cmd 0
-            _island_append_token_to_out
 
             if test $curr_cmd_nosandbox -eq 1
                 _island_append_token_to_out
@@ -171,6 +177,14 @@ function _island_accept_line
             end
 
             _island_wrap_cmd "$unescaped"
+            if test $status -ne 0
+                # failed to define wrapper, use `island run --` insertion instead.
+                set curr_line_out "$curr_line_out""island run -- $curr_token"
+                set curr_token ""
+                set modified 1
+                return
+            end
+
             _island_append_token_to_out
         else
             _island_append_token_to_out
