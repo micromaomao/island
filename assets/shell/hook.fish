@@ -135,11 +135,7 @@ function _island_accept_line
                 return
             end
 
-            set -l name "$stripped"
-            set -l unescaped (string unescape -- "$stripped" 2>/dev/null)
-            if test $status -eq 0
-                set name "$unescaped"
-            end
+            set -l name (string unescape -- "$stripped")
 
             if string match -r '/' -- "$name"
                 set out "$out""island run -- $raw_token"
@@ -167,7 +163,6 @@ function _island_accept_line
             if test "$ch" = "\n"
                 set in_comment 0
                 set expecting_cmd 1
-                set -g _ISLAND_TMP_EXPECTING_CMD "$expecting_cmd"
             end
             set i (math $i + 1)
             continue
