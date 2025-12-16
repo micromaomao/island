@@ -104,6 +104,7 @@ mod shell_hook_fish {
             test_path_rewrite_escaped,
             test_path_rewrite_space,
             test_quoted_command_wrapping,
+            test_nosandbox,
             test_and_variants,
             test_pipe_wrapping,
             test_invalid_commandline,

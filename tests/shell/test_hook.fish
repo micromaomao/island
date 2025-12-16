@@ -186,6 +186,17 @@ function test_quoted_command_wrapping
     tap_pass
 end
 
+function test_nosandbox
+    tap_start "nosandbox bypasses wrapping"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    set -g __island_cmdline_buffer "nosandbox /bin/echo hi"
+    _island_accept_line
+    assert_eq "$__island_cmdline_buffer" "nosandbox /bin/echo hi" "Buffer should remain unchanged"
+    assert_not_contains /bin/echo "nosandbox should skip wrapping" $_ISLAND_WRAPPED_CMDS
+    tap_pass
+end
+
 function test_and_variants
     tap_start "Logical and separators"
     setup
@@ -268,6 +279,7 @@ set TESTS \
     test_path_rewrite_escaped \
     test_path_rewrite_space \
     test_quoted_command_wrapping \
+    test_nosandbox \
     test_and_variants \
     test_pipe_wrapping \
     test_invalid_commandline \
