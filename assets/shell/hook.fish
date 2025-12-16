@@ -48,6 +48,14 @@ function _island_chpwd --on-variable PWD
     end
 end
 
+function nosandbox
+    if test (count $argv) -eq 0
+        return 0
+    end
+    command $argv
+end
+complete -c nosandbox -w command
+
 function _island_wrap_cmd --argument-names cmd
     if test -z "$cmd"
         return
@@ -99,7 +107,7 @@ function _island_accept_line
 
     set -l buffer (commandline --current-buffer)
     set -l out ""
-    set -l token ""
+    set -l curr_token ""
     set -l expecting_cmd 1
     set -l in_squote 0
     set -l in_dquote 0
@@ -108,8 +116,8 @@ function _island_accept_line
     set -l modified 0
     set -l nosandbox_next 0
 
-    function _island_process_token --no-scope-shadowing --argument-names token_ref
-        set -l raw_token $token_ref
+    function _island_process_curr_token --no-scope-shadowing
+        set -l raw_token $curr_token
         set -l stripped (string trim -- "$raw_token")
         if test -z "$stripped"
             return
@@ -160,6 +168,8 @@ function _island_accept_line
             end
             set out "$out$raw_token"
         end
+
+        set curr_token ""
     end
 
     set -l i 1
@@ -207,10 +217,7 @@ function _island_accept_line
 
         if test $in_squote -eq 0 -a $in_dquote -eq 0
             if test "$ch" = "#"
-                if test -n "$token"
-                    _island_process_token "$token"
-                    set token ""
-                end
+                _island_process_curr_token
                 set out "$out#"
                 set in_comment 1
                 set i (math $i + 1)
@@ -221,30 +228,27 @@ function _island_accept_line
             set -l sep_len 0
             set -l sep_value ""
 
-            # Treat fd redirections like 2>| as separators.
-            set -l match (string match -r "^[0-9]+>\\|" -- $remaining)
-            if test (count $match) -gt 0
-                set sep_value $match[1]
-                set sep_len (string length -- $sep_value)
-            else if string match -r '^&&' -- $remaining
-                set sep_value "&&"
-                set sep_len 2
-            else if string match -r "^\\|\\|" -- $remaining
-                set sep_value "||"
-                set sep_len 2
-            else if string match -r "^&\\|" -- $remaining
-                set sep_value "&|"
-                set sep_len 2
-            else if test "$ch" = "|" -o "$ch" = ";" -o "$ch" = "&" -o "$ch" = "\n"
-                set sep_value $ch
-                set sep_len 1
+            set -l separator_specs \
+                "^[0-9]+>\\|" \
+                "^&&" \
+                "^\\|\\|" \
+                "^&\\|" \
+                "^\\|" \
+                "^;" \
+                "^&" \
+                "^\n"
+
+            for spec in $separator_specs
+                set -l match (string match -r -- $spec $remaining)
+                if test (count $match) -gt 0
+                    set sep_value $match[1]
+                    set sep_len (string length -- $sep_value)
+                    break
+                end
             end
 
             if test $sep_len -gt 0
-                if test -n "$token"
-                    _island_process_token "$token"
-                    set token ""
-                end
+                _island_process_curr_token
                 set out "$out$sep_value"
                 set expecting_cmd 1
                 set i (math $i + $sep_len)
@@ -254,23 +258,18 @@ function _island_accept_line
 
         if test $in_squote -eq 0 -a $in_dquote -eq 0
             if string match -r '^[ \t\r]$' -- $ch
-                if test -n "$token"
-                    _island_process_token "$token"
-                    set token ""
-                end
+                _island_process_curr_token
                 set out "$out$ch"
                 set i (math $i + 1)
                 continue
             end
         end
 
-        set token "$token$ch"
+        set curr_token "$curr_token$ch"
         set i (math $i + 1)
     end
 
-    if test -n "$token"
-        _island_process_token "$token"
-    end
+    _island_process_curr_token
 
     if test $modified -eq 1
         commandline --replace -- "$out"
@@ -309,10 +308,12 @@ function _island_unhook
     functions -e _island_precmd
     functions -e _island_unhook
     functions -e _island_wrap_cmd
+    functions -e nosandbox
     functions -e island
 
     set -e _ISLAND_PROFILES
     set -e _ISLAND_WRAPPED_CMDS
+    complete -c nosandbox --erase
 end
 
 if status is-interactive
