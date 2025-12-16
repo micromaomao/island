@@ -117,14 +117,15 @@ function _island_accept_line
     set -l nosandbox_next 0
 
     function _island_process_curr_token --no-scope-shadowing
-        set -l raw_token $curr_token
-        set -l stripped (string trim -- "$raw_token")
+        set -l stripped (string trim -- "$curr_token")
         if test -z "$stripped"
+            set curr_token ""
             return
         end
 
         if test $expecting_cmd -eq 1 -a "$stripped" = "nosandbox"
             set nosandbox_next 1
+            set curr_token ""
             return
         end
 
@@ -140,25 +141,27 @@ function _island_accept_line
 
         if test $expecting_cmd -eq 1
             if test $is_assignment -eq 1
-                set out "$out$raw_token"
+                set out "$out$curr_token"
+                set curr_token ""
                 return
             end
             if test $is_sep_word -eq 1
-                set out "$out$raw_token"
+                set out "$out$curr_token"
                 set expecting_cmd 1
+                set curr_token ""
                 return
             end
 
             set -l name (string unescape -- "$stripped")
 
             if test $nosandbox_next -eq 1
-                set out "$out$raw_token"
+                set out "$out$curr_token"
             else if string match -r '/' -- "$name"
-                set out "$out""island run -- $raw_token"
+                set out "$out""island run -- $curr_token"
                 set modified 1
             else
                 _island_wrap_cmd "$name"
-                set out "$out$raw_token"
+                set out "$out$curr_token"
             end
             set nosandbox_next 0
             set expecting_cmd 0
@@ -166,8 +169,10 @@ function _island_accept_line
             if test $is_sep_word -eq 1
                 set expecting_cmd 1
             end
-            set out "$out$raw_token"
+            set out "$out$curr_token"
         end
+
+        set curr_token ""
 
         set curr_token ""
     end
