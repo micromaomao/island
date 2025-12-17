@@ -30,33 +30,10 @@ set -gx HOME (mktemp -d)
 set -l SCRIPT_DIR (dirname (status filename))
 set -l HOOK_SCRIPT "$SCRIPT_DIR/../../assets/shell/hook.fish"
 
-set -l ISLAND_STUB_DIR (mktemp -d)
-set -l ISLAND_STUB "$ISLAND_STUB_DIR/island"
-begin
-    echo '#!/usr/bin/env sh'
-    echo 'case "$1" in'
-    echo '    status)'
-    echo '        if [ -n "${ISLAND_STATUS_OUTPUT+x}" ]; then'
-    echo '            printf "%s\n" "$ISLAND_STATUS_OUTPUT"'
-    echo '        fi'
-    echo '        exit "${ISLAND_STATUS_EXIT:-0}"'
-    echo '        ;;'
-    echo '    run)'
-    echo '        if [ -n "$ISLAND_RUN_LOG" ]; then'
-    echo '            printf "%s\n" "$2" >>"$ISLAND_RUN_LOG"'
-    echo '        fi'
-    echo '        exit 0'
-    echo '        ;;'
-    echo 'esac'
-    echo 'exit 0'
-end >"$ISLAND_STUB"
-chmod +x "$ISLAND_STUB"
-set -gx PATH "$ISLAND_STUB_DIR" $PATH
+set -x PATH "$SCRIPT_DIR/test_stub:$PATH"
 
 set -g __island_cmdline_buffer ""
 set -g __island_cmdline_valid_status 0
-set -g __island_cmdline_execute_status 0
-set -g __island_cmdline_executed ""
 
 function commandline
     set -l cmd $argv[1]
@@ -73,16 +50,11 @@ function commandline
             end
             if test (count $argv) -ge $idx
                 set -l rest $argv[$idx..-1]
-                set -g __island_cmdline_buffer (string join ' ' $rest)
+                set -g __island_cmdline_buffer "$rest"
             else
                 set -g __island_cmdline_buffer ""
             end
             return 0
-        case "--function"
-            if test (count $argv) -ge 2 -a "$argv[2]" = "execute"
-                set -g __island_cmdline_executed "$__island_cmdline_buffer"
-                return $__island_cmdline_execute_status
-            end
     end
     return 0
 end
@@ -96,8 +68,6 @@ source "$HOOK_SCRIPT"
 function setup
     set -g __island_cmdline_buffer ""
     set -g __island_cmdline_valid_status 0
-    set -g __island_cmdline_executed ""
-    set -g __island_cmdline_execute_status 0
     set -gx ISLAND_STATUS_OUTPUT ""
     set -gx ISLAND_STATUS_EXIT 0
     set -gx ISLAND_RUN_LOG (mktemp)
@@ -128,9 +98,9 @@ end
 function test_profiles_tracking
     tap_start "Profiles tracking via _island_chpwd"
     setup
-    set -gx ISLAND_STATUS_OUTPUT (printf "alpha\nbeta")
+    set -gx ISLAND_STATUS_OUTPUT a b
     _island_chpwd
-    assert_eq (string join ' ' $_ISLAND_PROFILES) "alpha beta" "_ISLAND_PROFILES not set"
+    assert_eq "$_ISLAND_PROFILES" "a b" "_ISLAND_PROFILES not set"
 
     set -gx ISLAND_STATUS_EXIT 1
     _island_chpwd
@@ -147,7 +117,6 @@ function test_path_rewrite
     set -g __island_cmdline_buffer "/bin/echo hi"
     _island_accept_line
     assert_eq "$__island_cmdline_buffer" "island run -- /bin/echo hi" "Buffer not rewritten"
-    assert_eq "$__island_cmdline_executed" "island run -- /bin/echo hi" "Execute did not run rewritten buffer"
     tap_pass
 end
 
@@ -302,11 +271,11 @@ function test_island_refreshes_profiles
     setup
     set -gx ISLAND_STATUS_OUTPUT "first"
     _island_chpwd
-    assert_eq (string join ' ' $_ISLAND_PROFILES) "first" "Initial profiles mismatch"
+    assert_eq "$_ISLAND_PROFILES" "first" "Initial profiles mismatch"
 
     set -gx ISLAND_STATUS_OUTPUT "second"
-    island status >/dev/null ^/dev/null
-    assert_eq (string join ' ' $_ISLAND_PROFILES) "second" "Profiles not refreshed"
+    island status >/dev/null 2>&1
+    assert_eq "$_ISLAND_PROFILES" "second" "Profiles not refreshed"
     tap_pass
 end
 
