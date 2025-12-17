@@ -107,12 +107,10 @@ function _island_accept_line
     commandline --is-valid
     set -l cl_status $status
     if test $cl_status -ne 0
-        commandline --function execute
         return
     end
 
     if not set -q _ISLAND_PROFILES[1]
-        commandline --function execute
         return
     end
 
@@ -124,6 +122,22 @@ function _island_accept_line
     set -g _ISLAND_WRAPPED_CMDS
 
     set -l input_lines (commandline --current-buffer)
+
+    # If the user has typed an abbr, it might not have expanded yet.  This
+    # will result in us not "catching" the expanded command, which is
+    # unsafe.  Therefore we bail out and force the abbr expansion to
+    # happen first.  Due to the async nature of `commandline -f`, we will
+    # have to force the user to press enter again.  (We could technically
+    # parse the abbr --show output and do the expansion ourselves, but for
+    # now this is fine)
+
+    for line in $input_lines
+        if abbr --query "$line" >/dev/null 2>&1
+            commandline --function expand-abbr repaint
+            return 1
+        end
+    end
+
     set -l output_lines
     set -l curr_line_out ""
     set -l curr_token ""
@@ -327,10 +341,16 @@ function _island_accept_line
     if test $modified -eq 1
         commandline --replace -- $output_lines
     end
+
+    return 0
 end
 
 function _island_accept_line_normal
     _island_accept_line
+    if test $status -ne 0
+        return
+    end
+
     if set -q _island_orig_accept_line_normal
         eval "$_island_orig_accept_line_normal"
     else
@@ -340,6 +360,10 @@ end
 
 function _island_accept_line_vi
     _island_accept_line
+    if test $status -ne 0
+        return
+    end
+
     if set -q _island_orig_accept_line_vi
         eval "$_island_orig_accept_line_vi"
     else
