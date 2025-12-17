@@ -4,26 +4,14 @@
 # Island shell integration for Fish: https://github.com/landlock-lsm/island
 #
 # # Usage
+#
+# Add this to your ~/.config/fish/config.fish:
+#
 #   source (island hook fish | psub)
 #
-# You can use the $_ISLAND_PROFILES variable (list) in your prompt to display
-# the active Island profiles.
-#
-# # Features
-# - Transparent wrapping of external commands (including pipelines and fd-pipe
-#   forms like `2>|`).
-# - Path invocations are rewritten in-buffer so history shows `island run --`.
-# - Immediate profile refresh when running `island`.
-#
-# # Limitations
-# - Fish has no ${(z)BUFFER} equivalent.
-# - `commandline -o` is deprecated and also does not report operators (just like
-#   `commandline --tokens-expanded`), so it cannot be used to detect command
-#   boundaries.
-# - Parsing is best-effort and quote-aware only; complex constructs such as
-#   command substitutions are not handled.
-#
-# # Example usage in fish_prompt:
+# You can use the $_ISLAND_PROFILES array in your prompt to display the
+# active Island profiles, or just to display if the current working directory is
+# handled. For example:
 #
 # functions --copy fish_prompt _orig_fish_prompt
 # function fish_prompt
@@ -32,7 +20,30 @@
 #     end
 #     _orig_fish_prompt
 # end
-
+#
+# # Goal
+#
+# Transparently sandbox commands (e.g., `ls`, `make`) when running in an
+# Island-managed directory, without changing the user experience.
+#
+# # Features
+# - Pipeline support (sandboxes `date` and `head` in `date | head`).
+# - Command chaining support (sandboxes `ls` and `echo` in `ls && echo
+#   done` and its variants).
+# - Idempotency: This script is safe to source multiple times.
+#
+# # Limitations
+# - No handling of command substitutions.
+# - Since aliases are defined as functions in fish, they are not easy to
+#   resolve automatically.  For alias-like behavior, use `abbr` instead,
+#   which will automatically expand before execution.
+# - No support for functions.  This includes things like the built-in `ls`
+#   and `ll`, `man`, etc.  (They will still work, but won't be sandboxed.)
+#
+# # Note
+# - Fish has no ${(z)BUFFER} equivalent (`commandline --tokens-expanded` /
+#   `commandline -o` drops operators), and so this file implements a
+#   best-effort parser to handle quoted strings, operators, etc.
 
 # Ensure clean state if re-sourced.
 if functions -q _island_unhook
@@ -314,10 +325,26 @@ function _island_accept_line
     end
 
     if test $modified -eq 1
-        commandline --replace -- "$output_lines"
+        commandline --replace -- $output_lines
     end
+end
 
-    commandline --function execute
+function _island_accept_line_normal
+    _island_accept_line
+    if set -q _island_orig_accept_line_normal
+        eval "$_island_orig_accept_line_normal"
+    else
+        commandline --function execute
+    end
+end
+
+function _island_accept_line_vi
+    _island_accept_line
+    if set -q _island_orig_accept_line_vi
+        eval "$_island_orig_accept_line_vi"
+    else
+        commandline --function execute
+    end
 end
 
 function _island_precmd --on-event fish_prompt
@@ -340,6 +367,14 @@ end
 function _island_unhook
     bind --erase \r
     bind -M insert --erase \r
+    if set -q _island_orig_accept_line_normal
+        bind \r $_island_orig_accept_line_normal
+        set -e _island_orig_accept_line_normal
+    end
+    if set -q _island_orig_accept_line_vi
+        bind -M insert \r $_island_orig_accept_line_vi
+        set -e _island_orig_accept_line_vi
+    end
 
     if functions -q _island_precmd
         _island_precmd
@@ -359,9 +394,26 @@ function _island_unhook
 end
 
 if status is-interactive
-    bind \r _island_accept_line
-    # Ensure insert-mode bindings (vi-mode) also intercept Enter.
-    bind -M insert \r _island_accept_line
+    set -l old_bind (bind --user \r 2>/dev/null)
+    set -l match (string match -r '^bind enter ([a-zA-Z0-9_-]+)$' -- $old_bind)
+
+    if test (count $match) -eq 2
+        set -g _island_orig_accept_line_normal $match[2]
+    else
+        set -e _island_orig_accept_line_normal
+    end
+
+    set -l old_bind (bind --user -M insert \r 2>/dev/null)
+    set -l match (string match -r '^bind -M insert enter ([a-zA-Z0-9_-]+)$' -- $old_bind)
+    if test (count $match) -eq 2
+        set -g _island_orig_accept_line_vi $match[2]
+    else
+        set -e _island_orig_accept_line_vi
+    end
+
+    bind \r _island_accept_line_normal
+    # Make it work under fish_vi_key_bindings
+    bind -M insert \r _island_accept_line_vi
 end
 
 _island_chpwd
