@@ -285,6 +285,17 @@ function _island_accept_line
                 continue
             end
 
+            # We don't need to handle things like 2>/dev/null since these
+            # necessarily has to follow a space, and thus we would already
+            # have separated the previous token.
+            set -l redir (string match -r -- "^(>>|<<|>|<)" $remaining)
+            if test (count $redir) -gt 0
+                _island_process_curr_token
+                set curr_line_out "$curr_line_out$redir[1]"
+                set i (math $i + (string length -- $redir[1]))
+                continue
+            end
+
             if string match -qr '^[ \t]$' -- $ch
                 _island_process_curr_token
                 set curr_line_out "$curr_line_out$ch"
