@@ -112,6 +112,7 @@ mod shell_hook_fish {
             test_invalid_commandline,
             test_cleanup_event,
             test_island_refreshes_profiles,
+            test_paging_mode_skip,
         }
     }
 }

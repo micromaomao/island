@@ -34,12 +34,15 @@ set -x PATH "$SCRIPT_DIR/test_stub:$PATH"
 
 set -g __island_cmdline_buffer ""
 set -g __island_cmdline_valid_status 0
+set -g __island_cmdline_paging_mode 1  # Not in paging mode by default (returns 1 = false)
 
 function commandline
     set -l cmd $argv[1]
     switch $cmd
         case "--is-valid"
             return $__island_cmdline_valid_status
+        case "--paging-mode"
+            return $__island_cmdline_paging_mode
         case "--current-buffer"
             printf "%s" "$__island_cmdline_buffer"
             return 0
@@ -68,6 +71,7 @@ source "$HOOK_SCRIPT"
 function setup
     set -g __island_cmdline_buffer ""
     set -g __island_cmdline_valid_status 0
+    set -g __island_cmdline_paging_mode 1  # Not in paging mode by default (returns 1 = false)
     set -gx ISLAND_STATUS_OUTPUT ""
     set -gx ISLAND_STATUS_EXIT 0
     set -gx ISLAND_RUN_LOG (mktemp)
@@ -279,6 +283,21 @@ function test_island_refreshes_profiles
     tap_pass
 end
 
+function test_paging_mode_skip
+    tap_start "Paging mode skips hook processing"
+    setup
+    set -g _ISLAND_PROFILES alpha
+    set -g __island_cmdline_buffer "/bin/echo hi"
+    set -g __island_cmdline_paging_mode 0  # Paging mode active (returns 0 = true)
+    _island_accept_line
+    # When in paging mode, the buffer should not be modified
+    assert_eq "$__island_cmdline_buffer" "/bin/echo hi" "Buffer modified during paging mode"
+    if set -q _ISLAND_WRAPPED_CMDS[1]
+        tap_fail "Commands wrapped during paging mode"
+    end
+    tap_pass
+end
+
 set TESTS \
     test_profiles_tracking \
     test_path_rewrite \
@@ -292,7 +311,8 @@ set TESTS \
     test_redirections \
     test_invalid_commandline \
     test_cleanup_event \
-    test_island_refreshes_profiles
+    test_island_refreshes_profiles \
+    test_paging_mode_skip
 
 if test (count $argv) -gt 0
     if test "$argv[1]" = "--check-count"

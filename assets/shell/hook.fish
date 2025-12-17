@@ -104,6 +104,12 @@ function _island_wrap_cmd --argument-names cmd
 end
 
 function _island_accept_line
+    # If the completion pager is active, let the default behavior handle it
+    # to avoid executing commands when the user is just selecting from completions
+    if commandline --paging-mode
+        return
+    end
+
     commandline --is-valid
     set -l cl_status $status
     if test $cl_status -ne 0
