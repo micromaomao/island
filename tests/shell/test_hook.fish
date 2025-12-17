@@ -34,7 +34,7 @@ set -x PATH "$SCRIPT_DIR/test_stub:$PATH"
 
 set -g __island_cmdline_buffer ""
 set -g __island_cmdline_valid_status 0
-set -g __island_cmdline_paging_mode 1  # Not in paging mode by default (returns 1 = false)
+set -g __island_cmdline_paging_mode 0
 
 function commandline
     set -l cmd $argv[1]
@@ -42,7 +42,11 @@ function commandline
         case "--is-valid"
             return $__island_cmdline_valid_status
         case "--paging-mode"
-            return $__island_cmdline_paging_mode
+            if test "$__island_cmdline_paging_mode" -eq 1
+                return 0
+            else
+                return 1
+            end
         case "--current-buffer"
             printf "%s" "$__island_cmdline_buffer"
             return 0
@@ -69,9 +73,10 @@ end
 source "$HOOK_SCRIPT"
 
 function setup
+    # Reset state between tests
     set -g __island_cmdline_buffer ""
     set -g __island_cmdline_valid_status 0
-    set -g __island_cmdline_paging_mode 1  # Not in paging mode by default (returns 1 = false)
+    set -g __island_cmdline_paging_mode 0
     set -gx ISLAND_STATUS_OUTPUT ""
     set -gx ISLAND_STATUS_EXIT 0
     set -gx ISLAND_RUN_LOG (mktemp)
@@ -288,7 +293,7 @@ function test_paging_mode_skip
     setup
     set -g _ISLAND_PROFILES alpha
     set -g __island_cmdline_buffer "/bin/echo hi"
-    set -g __island_cmdline_paging_mode 0  # Paging mode active (returns 0 = true)
+    set -g __island_cmdline_paging_mode 1  # Paging mode active (returns 0 = true)
     _island_accept_line
     # When in paging mode, the buffer should not be modified
     assert_eq "$__island_cmdline_buffer" "/bin/echo hi" "Buffer modified during paging mode"
