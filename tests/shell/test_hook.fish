@@ -147,6 +147,7 @@ function test_path_rewrite
     set -g __island_cmdline_buffer "/bin/echo hi"
     _island_accept_line
     assert_eq "$__island_cmdline_buffer" "island run -- /bin/echo hi" "Buffer not rewritten"
+    commandline --function execute
     assert_eq "$__island_cmdline_executed" "island run -- /bin/echo hi" "Execute did not run rewritten buffer"
     tap_pass
 end
