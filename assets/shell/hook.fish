@@ -306,7 +306,7 @@ function _island_accept_line
 
             if test "$ch" = "#"
                 _island_process_curr_token
-                set remaining (string sub -s $i -- $buffer)
+                set remaining (string sub -s $i -- $line)
                 set curr_line_out "$curr_line_out$remaining"
                 # skip rest of the line
                 set i (math $len + 1)
