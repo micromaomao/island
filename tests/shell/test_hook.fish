@@ -118,6 +118,13 @@ function assert_contains --argument-names needle msg
     end
 end
 
+function assert_not_contains --argument-names needle msg
+    set -l list $argv[3..-1]
+    if contains -- $needle $list
+        tap_fail "$msg"
+    end
+end
+
 function test_profiles_tracking
     tap_start "Profiles tracking via _island_chpwd"
     setup
