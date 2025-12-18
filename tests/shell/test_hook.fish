@@ -198,6 +198,19 @@ function test_and_variants
     if contains -- tail $_ISLAND_WRAPPED_CMDS
         tap_fail "'and' without leading separator should not wrap second command"
     end
+
+    # Test && operator
+    set -g __island_cmdline_buffer "head a && tail b"
+    _island_accept_line
+    assert_contains head "first command not wrapped with &&" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command not wrapped after &&" $_ISLAND_WRAPPED_CMDS
+
+    # Test || operator
+    set -g __island_cmdline_buffer "head a || tail b"
+    _island_accept_line
+    assert_contains head "first command not wrapped with ||" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command not wrapped after ||" $_ISLAND_WRAPPED_CMDS
+
     tap_pass
 end
 
