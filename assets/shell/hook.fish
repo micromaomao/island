@@ -319,7 +319,6 @@ function _island_accept_line
             # Order matters here - when two operators share a prefix,
             # match the longer one first.
             set -l separator_specs \
-                "^\n" \
                 "^;" \
                 "^&&" \
                 "^&\\|" \
