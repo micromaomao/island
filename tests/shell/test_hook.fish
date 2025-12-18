@@ -187,17 +187,42 @@ function test_operators
     setup
     set -g _ISLAND_PROFILES alpha
 
-    # Test && operator
+    # Test && operator with spaces
     set -g __island_cmdline_buffer "head a && tail b"
     _island_accept_line
     assert_contains head "first command not wrapped with &&" $_ISLAND_WRAPPED_CMDS
     assert_contains tail "command not wrapped after &&" $_ISLAND_WRAPPED_CMDS
 
-    # Test || operator
+    # Test || operator with spaces
     set -g __island_cmdline_buffer "head a || tail b"
     _island_accept_line
     assert_contains head "first command not wrapped with ||" $_ISLAND_WRAPPED_CMDS
     assert_contains tail "command not wrapped after ||" $_ISLAND_WRAPPED_CMDS
+
+    # Test || operator without spaces
+    set -g __island_cmdline_buffer "head||tail"
+    _island_accept_line
+    assert_contains head "head not wrapped with ||" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "tail not wrapped after || without spaces" $_ISLAND_WRAPPED_CMDS
+
+    # Test && operator without spaces
+    set -g __island_cmdline_buffer "head&&tail"
+    _island_accept_line
+    assert_contains head "head not wrapped with &&" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "tail not wrapped after && without spaces" $_ISLAND_WRAPPED_CMDS
+
+    # Test || in double quotes (should NOT be treated as separator)
+    set -g __island_cmdline_buffer "head \"||\" tail"
+    _island_accept_line
+    assert_contains head "head not wrapped when || is quoted" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains tail "tail should not be wrapped when || is in quotes" $_ISLAND_WRAPPED_CMDS
+
+    # Test && in single quotes (should NOT be treated as separator)
+    set -g __island_cmdline_buffer "echo 'head&&tail'"
+    _island_accept_line
+    assert_contains echo "echo not wrapped when && is in single quotes" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains head "head should not be wrapped when inside single quotes" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains tail "tail should not be wrapped when inside single quotes" $_ISLAND_WRAPPED_CMDS
 
     tap_pass
 end
