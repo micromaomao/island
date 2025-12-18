@@ -318,11 +318,11 @@ function _island_accept_line
             set -l separator_specs \
                 "^\n" \
                 "^;" \
-                "^&" \
                 "^&&" \
+                "^&\\|" \
+                "^&" \
                 "^\\|\\|" \
                 "^\\|" \
-                "^&\\|" \
                 "^\\d+>\\|"
 
             for spec in $separator_specs
