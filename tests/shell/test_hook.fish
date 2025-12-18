@@ -159,6 +159,18 @@ function test_nosandbox
     tap_pass
 end
 
+function test_nosandbox_with_separator
+    tap_start "nosandbox flag doesn't persist after separator"
+    setup
+    set -g _ISLAND_PROFILES profile1
+    set -g __island_cmdline_buffer "nosandbox /bin/echo hi; /bin/cat file"
+    _island_accept_line
+    assert_eq "$__island_cmdline_buffer" "nosandbox /bin/echo hi; island run -- /bin/cat file" "Second command after separator should be wrapped"
+    assert_not_contains /bin/echo "first command with nosandbox should not be wrapped" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains /bin/cat "second command should be wrapped (not in list means it got island run --)" $_ISLAND_WRAPPED_CMDS
+    tap_pass
+end
+
 function test_operators
     tap_start "Shell operators && and ||"
     setup
@@ -337,6 +349,7 @@ set TESTS \
     test_path_rewrite_space \
     test_quoted_command_wrapping \
     test_nosandbox \
+    test_nosandbox_with_separator \
     test_operators \
     test_and_variants \
     test_pipe_wrapping \
