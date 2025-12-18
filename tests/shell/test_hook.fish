@@ -202,8 +202,8 @@ function test_operators
 
     set -g __island_cmdline_buffer '"head&&tail"'
     _island_accept_line
-    assert_not_contains head "head should not be wrapped when inside single quotes" $_ISLAND_WRAPPED_CMDS
-    assert_not_contains tail "tail should not be wrapped when inside single quotes" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains head "head should not be wrapped when inside double quotes" $_ISLAND_WRAPPED_CMDS
+    assert_not_contains tail "tail should not be wrapped when inside double quotes" $_ISLAND_WRAPPED_CMDS
 
     tap_pass
 end

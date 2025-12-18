@@ -113,7 +113,7 @@ function _island_wrap_cmd --argument-names cmd
         end
     end
 
-    set escaped (string escape -- $cmd)
+    set -l escaped (string escape -- $cmd)
 
     eval "
     function $escaped --wraps $escaped
@@ -370,6 +370,7 @@ function _island_accept_line
         set output_lines $output_lines $curr_line_out
         set curr_line_out ""
         set expecting_cmd 1
+        set curr_cmd_nosandbox 0
     end
 
     if test $modified -eq 1
