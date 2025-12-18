@@ -25,3 +25,28 @@ end
 function tap_plan --argument-names count
     echo "1..$count"
 end
+
+function tap_run
+    if test (count $argv) -gt 0
+        if test "$argv[1]" = "--check-count"
+            set -l expected $argv[2]
+            if test (count $TESTS) -ne $expected
+                echo "Error: Expected $expected tests, but found "(count $TESTS)"."
+                exit 1
+            end
+            exit 0
+        end
+
+        set -l test_name $argv[1]
+        if not contains -- $test_name $TESTS
+            tap_fail "Unknown test $test_name"
+        end
+        $test_name
+        exit 0
+    end
+
+    tap_plan (count $TESTS)
+    for t in $TESTS
+        eval $t
+    end
+end
