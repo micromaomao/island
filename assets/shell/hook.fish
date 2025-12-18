@@ -339,6 +339,7 @@ function _island_accept_line
             if test $sep_len -gt 0
                 _island_process_curr_token
                 set expecting_cmd 1
+                set curr_cmd_nosandbox 0
                 set curr_line_out "$curr_line_out$sep_value"
                 set i (math $i + $sep_len)
                 continue
