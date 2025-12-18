@@ -170,7 +170,6 @@ function _island_accept_line
         return
     end
 
-
     set -l output_lines
     set -l curr_line_out ""
     set -l curr_token ""
