@@ -182,6 +182,26 @@ function test_nosandbox
     tap_pass
 end
 
+function test_operators
+    tap_start "Shell operators && and ||"
+    setup
+    set -g _ISLAND_PROFILES alpha
+
+    # Test && operator
+    set -g __island_cmdline_buffer "head a && tail b"
+    _island_accept_line
+    assert_contains head "first command not wrapped with &&" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command not wrapped after &&" $_ISLAND_WRAPPED_CMDS
+
+    # Test || operator
+    set -g __island_cmdline_buffer "head a || tail b"
+    _island_accept_line
+    assert_contains head "first command not wrapped with ||" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command not wrapped after ||" $_ISLAND_WRAPPED_CMDS
+
+    tap_pass
+end
+
 function test_and_variants
     tap_start "Logical and separators"
     setup
@@ -198,19 +218,6 @@ function test_and_variants
     if contains -- tail $_ISLAND_WRAPPED_CMDS
         tap_fail "'and' without leading separator should not wrap second command"
     end
-
-    # Test && operator
-    set -g __island_cmdline_buffer "head a && tail b"
-    _island_accept_line
-    assert_contains head "first command not wrapped with &&" $_ISLAND_WRAPPED_CMDS
-    assert_contains tail "command not wrapped after &&" $_ISLAND_WRAPPED_CMDS
-
-    # Test || operator
-    set -g __island_cmdline_buffer "head a || tail b"
-    _island_accept_line
-    assert_contains head "first command not wrapped with ||" $_ISLAND_WRAPPED_CMDS
-    assert_contains tail "command not wrapped after ||" $_ISLAND_WRAPPED_CMDS
-
     tap_pass
 end
 
@@ -324,6 +331,7 @@ set TESTS \
     test_path_rewrite_space \
     test_quoted_command_wrapping \
     test_nosandbox \
+    test_operators \
     test_and_variants \
     test_pipe_wrapping \
     test_redirections \
