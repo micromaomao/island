@@ -25,7 +25,9 @@ function commandline
                 return 1
             end
         case "--current-buffer"
-            printf "%s" "$__island_cmdline_buffer"
+            for line in $__island_cmdline_buffer
+                echo $line
+            end
             return 0
         case "--replace"
             set -l idx 2
@@ -163,11 +165,28 @@ function test_nosandbox_with_separator
     tap_start "nosandbox flag doesn't persist after separator"
     setup
     set -g _ISLAND_PROFILES profile1
+
+    set -g __island_cmdline_buffer "nosandbox head; tail"
+    _island_accept_line
+    assert_not_contains head "command with nosandbox should not be wrapped" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command after separator should be wrapped" $_ISLAND_WRAPPED_CMDS
+
     set -g __island_cmdline_buffer "nosandbox /bin/echo hi; /bin/cat file"
     _island_accept_line
     assert_eq "$__island_cmdline_buffer" "nosandbox /bin/echo hi; island run -- /bin/cat file" "Second command after separator should be wrapped"
     assert_not_contains /bin/echo "first command with nosandbox should not be wrapped" $_ISLAND_WRAPPED_CMDS
-    assert_not_contains /bin/cat "second command should be wrapped (not in list means it got island run --)" $_ISLAND_WRAPPED_CMDS
+    tap_pass
+
+    set -g __island_cmdline_buffer "nosandbox head" "tail"
+    _island_accept_line
+    assert_not_contains head "command with nosandbox should not be wrapped" $_ISLAND_WRAPPED_CMDS
+    assert_contains tail "command after newline should be wrapped" $_ISLAND_WRAPPED_CMDS
+    tap_pass
+
+    set -g __island_cmdline_buffer "nosandbox /bin/head" "/bin/tail"
+    _island_accept_line
+    # Test harness joins multiline output
+    assert_eq "$__island_cmdline_buffer" "nosandbox /bin/head island run -- /bin/tail" "Second command after newline should be wrapped"
     tap_pass
 end
 
